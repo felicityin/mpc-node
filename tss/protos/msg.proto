@@ -1,0 +1,9 @@
+package protos;
+
+message Envelope {
+  optional string  sourceDevice      = 1;
+  optional string  destinationDevice = 2;
+  optional uint64  timestamp         = 3;
+  optional bytes   content           = 4;
+  // next: 5
+}
