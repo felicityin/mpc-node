@@ -4,8 +4,8 @@
 pub mod keygen;
 pub mod sign;
 
-mod common;
 mod message;
+mod network;
 
 mod protos {
     include!(concat!(env!("OUT_DIR"), "/protos.rs"));

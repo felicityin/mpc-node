@@ -6,6 +6,11 @@ use tss_cli::opts::tss::{Opts, Subcommands};
 use tss_lib::keygen;
 
 fn main() -> eyre::Result<()> {
+    env_logger::builder()
+        .filter_level(log::LevelFilter::Debug)
+        .format_timestamp_millis()
+        .init();
+
     let opts = Opts::parse();
 
     match opts.sub {
@@ -23,7 +28,7 @@ fn main() -> eyre::Result<()> {
             let data =
                 keygen::run(&server_url, &room, index, threshold, number_of_parties).unwrap();
 
-            _ = output_file.write_all(&data.as_slice());
+            output_file.write_all(&serde_json::to_vec(&data).unwrap())?;
         }
     }
 

@@ -1,3 +1,5 @@
+syntax = "proto3";
+
 package protos;
 
 message Envelope {
@@ -6,4 +8,18 @@ message Envelope {
   optional uint64  timestamp         = 3;
   optional bytes   content           = 4;
   // next: 5
+}
+
+message Content {
+  enum Type {
+    P2P       = 0;
+    BROADCAST = 1;
+  }
+
+  optional uint64 id       = 1;
+  optional Type   type     = 2;
+  optional uint32 sender   = 3;
+  optional uint32 receiver = 4;
+  optional bytes  message  = 5;
+  // next: 6
 }

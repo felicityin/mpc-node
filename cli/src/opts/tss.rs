@@ -26,10 +26,14 @@ pub enum Subcommands {
             long,
             env = "SERVER_URL",
             value_name = "URL",
-            default_value = "http://localhost:8000/"
+            default_value = "ws://127.0.0.1:8080"
         )]
         server_url:        String,
-        #[clap(long, value_name = "ROOM", default_value = "default-keygen")]
+        #[clap(
+            long,
+            value_name = "ROOM",
+            default_value = "c05554ae-b4ee-4976-ac05-97aaf3c98a23"
+        )]
         room:              String,
         #[clap(long, short)]
         index:             u16,

@@ -1,10 +1,17 @@
-use anyhow::{anyhow, Context, Ok, Result};
-use futures::StreamExt;
+use anyhow::{Context, Ok, Result};
 
-use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::state_machine::keygen::Keygen;
-use round_based::async_runtime::AsyncProtocol;
+use cggmp21::{progress::PerfProfiler, supported_curves::Secp256k1};
+use cggmp21_keygen::ExecutionId;
+use key_share::DirtyCoreKeyShare;
+use rand::{Rng, SeedableRng};
+use rand_chacha::ChaCha20Rng;
+use rand_dev::DevRng;
+use round_based::MpcParty;
 
-use crate::common::join_computation;
+#[cfg(feature = "curve-secp256k1")]
+pub use generic_ec::curves::Secp256k1;
+
+use crate::network::join_computation;
 
 #[tokio::main]
 pub async fn run(
@@ -13,24 +20,36 @@ pub async fn run(
     index: u16,
     threshold: u16,
     number_of_parties: u16,
-) -> Result<Vec<u8>> {
-    let (_i, incoming, outgoing) = join_computation(server_url, room, index)
+) -> Result<DirtyCoreKeyShare<Secp256k1>> {
+    let (delivery, listening, sending) = join_computation(server_url, room, index)
         .await
         .context("join computation")?;
 
-    let incoming = incoming.fuse();
-    tokio::pin!(incoming);
-    tokio::pin!(outgoing);
+    let party = MpcParty::connected(delivery);
 
-    let keygen = Keygen::new(index, threshold, number_of_parties)?;
-    let output = AsyncProtocol::new(keygen, incoming, outgoing)
-        .run()
+    let mut rng = DevRng::new();
+    let eid: [u8; 32] = [0u8; 32];
+    let eid = ExecutionId::new(&eid);
+
+    let mut profiler = PerfProfiler::new();
+
+    let keygen = cggmp21::keygen::<Secp256k1>(eid, index, number_of_parties)
+        .enforce_reliable_broadcast(false)
+        .set_progress_tracer(&mut profiler);
+        // .set_threshold(threshold);
+
+    let mut party_rng = ChaCha20Rng::from_seed(rng.gen());
+    let output = keygen
+        .start(&mut party_rng, party)
         .await
-        .map_err(|e| anyhow!("protocol execution terminated with error: {}", e))?;
+        .expect("keygen failed");
 
-    println!("output, i: {}, n: {}", output.i, output.n);
+    listening.abort();
+    sending.abort();
 
-    let output = serde_json::to_vec_pretty(&output).unwrap();
+    let report = profiler.get_report().context("get perf report")?;
+    log::debug!("{}", report.display_io(false));
+    log::info!("keygen done");
 
-    Ok(output)
+    Ok(output.into_inner())
 }
