@@ -35,8 +35,8 @@ pub async fn run(
 
     let keygen = cggmp21::keygen::<Secp256k1>(eid, index, number_of_parties)
         .enforce_reliable_broadcast(false)
-        .set_progress_tracer(&mut profiler);
-        // .set_threshold(threshold);
+        .set_progress_tracer(&mut profiler)
+        .set_threshold(threshold);
 
     let mut party_rng = ChaCha20Rng::from_seed(rng.gen());
     let output = keygen

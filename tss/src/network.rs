@@ -125,6 +125,7 @@ where
         content.sender(),
         content.receiver(),
     );
+
     if content.sender() as u16 == index
         || (content.r#type() == protos::content::Type::P2p && content.receiver() as u16 != index)
     {
@@ -170,25 +171,28 @@ where
     M: Clone + Send + 'static + Serialize + DeserializeOwned,
 {
     while let Some(outgoing) = rx_from_delivery.next().await {
+        let (msg_type, receiver) = match outgoing.recipient {
+            MessageDestination::AllParties => (protos::content::Type::Broadcast, 0),
+            MessageDestination::OneParty(id) => (protos::content::Type::P2p, id),
+        };
+
         log::debug!(
-            "msg from delivery, sender: {}, id: {}, ",
+            "msg from delivery, type: {}, sender: {}, receiver: {}, id: {}",
+            msg_type.as_str_name(),
             outgoing.msg.sender,
+            receiver,
             outgoing.msg.id
         );
 
         let content = protos::Content {
             id: Some(outgoing.msg.id),
-            r#type: Some(if outgoing.recipient == MessageDestination::AllParties {
-                protos::content::Type::Broadcast.into()
-            } else {
-                protos::content::Type::P2p.into()
-            }),
+            r#type: Some(msg_type.into()),
             sender: Some(outgoing.msg.sender as u32),
+            receiver: Some(receiver as u32),
             message: Some(
                 serde_json::to_vec(&outgoing.msg.msg)
                     .context("failed to serialize outgoing msg")?,
             ),
-            ..Default::default()
         };
 
         let msg = protos::Envelope {
